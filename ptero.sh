@@ -1,121 +1,113 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -e
 
-# ================= COLORS =================
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-WHITE='\033[1;37m'
-NC='\033[0m'
+# ================== CONFIG ==================
+TOOL_NAME="GG VPS Installer"
+VERSION="v1.0.0"
+LOG_FILE="/var/log/gg-installer.log"
 
-# ================= FUNCTIONS =================
+# ================== COLORS ==================
+RED="\033[0;31m"
+GREEN="\033[0;32m"
+YELLOW="\033[1;33m"
+BLUE="\033[0;34m"
+GRAY="\033[0;37m"
+NC="\033[0m"
+
+# ================== UTILS ==================
+log() {
+  echo -e "$(date '+%F %T') : $1" >> "$LOG_FILE"
+}
+
+die() {
+  echo -e "${RED}Error:${NC} $1"
+  exit 1
+}
+
 spinner() {
   local pid=$!
-  local spin='-\|/'
-  local i=0
+  local spin='|/-\'
   while kill -0 $pid 2>/dev/null; do
-    i=$(( (i+1) %4 ))
-    printf "\r${CYAN}[%c] Working...${NC}" "${spin:$i:1}"
-    sleep .1
+    for i in {0..3}; do
+      printf "\r${BLUE}[%c] Processing...${NC}" "${spin:$i:1}"
+      sleep 0.1
+    done
   done
   printf "\r"
 }
 
-root_check() {
-  if [[ $EUID -ne 0 ]]; then
-    echo -e "${RED}❌ Run as root only!${NC}"
-    exit 1
-  fi
-}
+# ================== CHECKS ==================
+[[ $EUID -ne 0 ]] && die "Run as root"
 
-os_check() {
-  if ! grep -Ei "ubuntu|debian" /etc/os-release >/dev/null; then
-    echo -e "${RED}❌ Only Ubuntu/Debian supported${NC}"
-    exit 1
-  fi
-}
+grep -Ei "ubuntu|debian" /etc/os-release >/dev/null || die "Only Ubuntu/Debian supported"
 
-net_check() {
-  ping -c 1 google.com &>/dev/null || {
-    echo -e "${RED}❌ No internet connection${NC}"
-    exit 1
-  }
-}
+ping -c1 1.1.1.1 &>/dev/null || die "No internet connection"
 
-header() {
-  clear
-  echo -e "${CYAN}"
-  echo "╔══════════════════════════════════════════╗"
-  echo "║      🚀 GG VPS PRO TOOLKIT               ║"
-  echo "║      Author : GG                         ║"
-  echo "╚══════════════════════════════════════════╝"
-  echo -e "${NC}"
-}
+mkdir -p /var/log
 
-pause() {
-  read -p "Press Enter to continue..."
-}
+# ================== UI ==================
+clear
+echo -e "${BLUE}
+────────────────────────────────────────
+  $TOOL_NAME
+  Version: $VERSION
+────────────────────────────────────────
+${NC}"
 
-# ================= PRE CHECKS =================
-root_check
-os_check
-net_check
-
-# ================= MENU LOOP =================
+# ================== MENU ==================
 while true; do
-  header
-  echo -e "${GREEN}1.${NC} Install Pterodactyl Panel"
-  echo -e "${GREEN}2.${NC} Install Wings"
-  echo -e "${GREEN}3.${NC} Uninstall GG Tool"
-  echo -e "${GREEN}4.${NC} Install Cloudflare Tunnel"
-  echo -e "${GREEN}5.${NC} Tailscale Setup + Up"
-  echo -e "${GREEN}6.${NC} Blueprint Installer"
-  echo -e "${RED}0.${NC} Exit"
+  echo -e "${GRAY}1) Install Pterodactyl Panel"
+  echo "2) Install Wings"
+  echo "3) Install Cloudflare Tunnel"
+  echo "4) Setup Tailscale"
+  echo "5) Install Blueprint"
+  echo "0) Exit${NC}"
   echo ""
-  read -p "👉 Select option: " opt
+  read -p "Select option: " opt
+  echo ""
 
-  case $opt in
+  case "$opt" in
     1)
-      echo -e "${YELLOW}🚀 Installing Panel...${NC}"
-      bash <(curl -s https://pterodactyl-installer.se) & spinner
-      pause
+      echo "Installing Pterodactyl Panel..."
+      log "Installing Panel"
+      bash <(curl -fsSL https://pterodactyl-installer.se) & spinner
+      echo -e "${GREEN}Done.${NC}"
       ;;
     2)
-      echo -e "${YELLOW}🛠 Installing Wings...${NC}"
-      bash <(curl -s https://pterodactyl-installer.se) & spinner
-      pause
+      echo "Installing Wings..."
+      log "Installing Wings"
+      bash <(curl -fsSL https://pterodactyl-installer.se) & spinner
+      echo -e "${GREEN}Done.${NC}"
       ;;
     3)
-      echo -e "${RED}⚠ Removing tool...${NC}"
-      rm -f /usr/local/bin/gg-vps
-      echo -e "${GREEN}✔ Tool removed${NC}"
-      pause
+      echo "Installing Cloudflare Tunnel..."
+      log "Installing Cloudflare"
+      curl -fsSL https://pkg.cloudflare.com/install.sh | bash & spinner
+      apt install -y cloudflared &>>"$LOG_FILE"
+      echo -e "${GREEN}Done.${NC}"
       ;;
     4)
-      echo -e "${BLUE}☁ Installing Cloudflare Tunnel...${NC}"
-      curl -fsSL https://pkg.cloudflare.com/install.sh | bash & spinner
-      apt install cloudflared -y
-      pause
-      ;;
-    5)
-      echo -e "${CYAN}🔐 Installing Tailscale...${NC}"
+      echo "Installing Tailscale..."
+      log "Installing Tailscale"
       curl -fsSL https://tailscale.com/install.sh | sh & spinner
       tailscale up
-      pause
+      echo -e "${GREEN}Connected.${NC}"
       ;;
-    6)
-      echo -e "${BLUE}📦 Installing Blueprint...${NC}"
-      bash <(curl -s https://raw.githubusercontent.com/BlueprintFramework/framework/main/install.sh)
-      pause
+    5)
+      echo "Installing Blueprint..."
+      log "Installing Blueprint"
+      bash <(curl -fsSL https://raw.githubusercontent.com/BlueprintFramework/framework/main/install.sh)
       ;;
     0)
-      echo -e "${RED}👋 Bye!${NC}"
+      echo -e "${GRAY}Exiting.${NC}"
       exit 0
       ;;
     *)
-      echo -e "${RED}❌ Invalid option${NC}"
-      sleep 1
+      echo -e "${RED}Invalid option${NC}"
       ;;
   esac
+
+  echo ""
+  read -p "Press Enter to return to menu..."
+  clear
 done
