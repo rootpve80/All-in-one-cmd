@@ -70,7 +70,7 @@ while true; do
     1)
       echo "Installing Pterodactyl Panel..."
       log "Installing Panel"
-      bash <(curl -fsSL https://pterodactyl-installer.se) & spinner
+      bash <(curl -fsSL https://raw.githubusercontent.com/rootpve80/ptero-installer/refs/heads/main/Pteroinstall.sh) & spinner
       echo -e "${GREEN}Done.${NC}"
       ;;
     2)
